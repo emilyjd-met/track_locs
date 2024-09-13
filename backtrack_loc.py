@@ -3,7 +3,8 @@ Calculate back trajectories for ice stations (mobile with the ice) or
 moorings (fixed with respect to the ice) and write to an .nc file.
 
 TODO:
-* Forward tracking
+* Thomas suggests: I think this constant change between lat/lon and dx/dy is most useful when we change grid/projection (e.g. changing from CDR to NRT). But if we stay for several days in one projection, we could possibly stay with the dx/dy and not go through lat/lon. (we can still compute lat/lon, but do not need to go back).
+
 
 Environment used for programming: conda production environment on redhat linux
 '''
@@ -170,8 +171,17 @@ def parse_args():
     return args
 
 
+def print_percentage(step, total_steps):
+
+    percentage = int((step / total_steps) * 100)
+    sys.stdout.write('\r')
+    #sys.stdout.write(f'{percentage:.2f}%')
+    sys.stdout.write(f'Tracking... {percentage}%')
+    sys.stdout.flush()
+
+
 def create_bt_name(outname, firstenddate, enddate, bid, json_data, projname,
-                   reproc=True):
+                   forwardtrack=False, reproc=True):
     '''Find the name of the backtracking file'''
 
     if firstenddate is not None:
@@ -186,7 +196,10 @@ def create_bt_name(outname, firstenddate, enddate, bid, json_data, projname,
         else:
             projname = bid[0].replace(" ", "")
 
-    outf = 'backtrack_loc_{}_{}.nc'.format(projname, datestr)
+    if forwardtrack:
+        outf = 'forwardtrack_loc_{}_{}.nc'.format(projname, datestr)
+    else:
+        outf = 'backtrack_loc_{}_{}.nc'.format(projname, datestr)
 
     if reproc:
         outname = os.path.join(outname, '{:%Y}'.format(enddate),
@@ -219,18 +232,43 @@ def stripdate(listdirs):
     return cleandirs
 
 
-def begindateandper(enddate, period):
+def begindateandper(enddate, period, forwardtrack=False):
     '''Given the enddate and period, find the beginning date'''
 
-    if period.endswith("d"):
+    if period.endswith("d") or period.endswith("w"):
         per = int(period[:-1])
-        begindate = enddate - timedelta(days=int(per))
+        if period.endswith("w"):
+            per = int(per) * 7
+        if forwardtrack:
+            begindate = enddate + timedelta(days=int(per))
+        else:
+            begindate = enddate - timedelta(days=int(per))
     elif period.endswith("y"):
-        begindate = enddate - relativedelta(years=int(period[:-1]))
-        per = (enddate - begindate).days
+        if forwardtrack:
+            begindate = enddate + relativedelta(years=int(period[:-1]))
+            per = (begindate - enddate).days
+        else:
+            begindate = enddate - relativedelta(years=int(period[:-1]))
+            per = (enddate - begindate).days
     else:
-        raise ValueError("Period should be specified in terms of days or years")
+        raise ValueError("Period should be specified in terms of days, weeks or years")
 
+    # Checking for forward tracking that the "begindate" is not after
+    # today - 16 days (OSI SAF's NRT data delay.)
+    shiftdays = 16
+    shiftper = timedelta(days=shiftdays)
+    if forwardtrack:
+        if begindate > datetime.today() - shiftper:
+            if enddate < datetime.today() - shiftper:
+                begindate = datetime.today() - shiftper
+                per = per - (begindate - datetime.today()).days - shiftdays
+                print("WARNING: forward tracking is selected and the period "
+                      "gives a date after today, setting the tracking period "
+                      "up to today.")
+            else:
+                print("The date to forward track from is too late in time. "
+                      "This cannot be later than today - 16 days, as current "
+                      "ice concentration data is needed.")
     return begindate, per
 
 
@@ -280,17 +318,23 @@ def read_extra_landmask(landmask_fp, landmask_var, landmask_val):
 # ################################################################
 
 def retrieve_icedrift_file(dt, hemi='nh', icedrift_v='cdr-v1', maxskip=4,
-                           timestep=1, verbose=False):
+                           timestep=1, forwardtrack=False, verbose=False):
     '''Locate the ice drift file. Note that dt is the 'end-date' '''
 
+    # TODO - with forward tracking, should this look forward in time? Or
+    # can it still look back?
     drift_skip = 0
     fdt = dt
     fname = None
     drift_found = False
-    # Look for the file up to maxskip days back in time
+    # Look for the file up to maxskip days back in time (backtracking) or
+    # maxskip days forward in time (forward tracking)
     for try_dt in range(0, maxskip):
         if try_dt > 0:
-            fdt = fdt - timedelta(days=1)
+            if forwardtrack:
+                fdt = fdt + timedelta(days=1)
+            else:
+                fdt = fdt - timedelta(days=1)
             drift_skip += 1
             if verbose:
                 print("WARNING: for ice drift try again with {}".format(fdt))
@@ -463,23 +507,28 @@ def read_icedrift_file(driftfile, pdate, dtimestep=1, timestep=1):
 # ################################################################
 
 def find_iceconc_file(dt, hemi='nh', iceconc_v='cdr-v2', maxskip=4,
-                      verbose=False):
+                      forwardtrack=False, verbose=False):
     '''Locate an ice concentration file for the correct version and date'''
 
     # Look for the file up to maxskip days back in time
+    # TODO - with forward tracking it is still OK for it to look backward
+    # in time if it doesn't find the file it wants?
     conc_skip = 0
     fdt = dt
     fname = None
     for try_dt in range(0, maxskip):
         if try_dt > 0:
-            fdt = fdt - timedelta(days=1)
+            if forwardtrack:
+                fdt = fdt - timedelta(days=1)
+            else:
+                fdt = fdt - timedelta(days=1)
             conc_skip += 1
             if verbose:
                 print("WARNING: for iceconc try again with {}".format(fdt))
         fname = find_ice_file(fdt.date(), hemi=hemi, version=iceconc_v)
         if fname is not None:
             if check_ice_file(fname):
-            #if os.path.exists(fname):
+#                if os.path.exists(fname):
                 break
 
     if fname is None:
@@ -495,11 +544,12 @@ def find_iceconc_file(dt, hemi='nh', iceconc_v='cdr-v2', maxskip=4,
 
 
 def iceconc_areadef_lmask(dt, hemi='nh', iceconc_v='cdr-v2', maxskip=4,
-                          verbose=False):
+                          forwardtrack=False, verbose=False):
     '''Find the area definition and the landmask from the ice concentration'''
 
     concf, _ = find_iceconc_file(dt, hemi=hemi, iceconc_v=iceconc_v,
-                                 maxskip=maxskip, verbose=verbose)
+                                 maxskip=maxskip, forwardtrack=forwardtrack,
+                                 verbose=verbose)
     iceconc_area_defs = utils.load_grid_defs_from_OSISAF_ncCF_file(concf,
                             verbose=verbose)
     iceconc_area_defs.area_id = hemi
@@ -524,12 +574,12 @@ def read_iceconc_file(f):
 
 
 def get_ice_conc(dt, area_def, lmask, iceconc_v='cdr-v2', maxskip=4,
-                 verbose=False):
+                 forwardtrack=False, verbose=False):
     '''Retrieve the ice concentration, interpolated over land'''
 
     f, conc_skip = find_iceconc_file(dt, hemi=area_def.area_id,
                                      iceconc_v=iceconc_v, maxskip=maxskip,
-                                     verbose=verbose)
+                                     forwardtrack=forwardtrack, verbose=verbose)
     dat = read_iceconc_file(f)
 
     # Interpolate sea-ice concentration over land (in case a trajectory
@@ -551,7 +601,7 @@ def get_ice_conc(dt, area_def, lmask, iceconc_v='cdr-v2', maxskip=4,
 
 
 def extract_iceconc(dt, lons, lats, area_def, lmask, iceconc_v='cdr-v2',
-                    maxskip=4, verbose=False):
+                    maxskip=4, forwardtrack=False, verbose=False):
     '''Retrieve the ice concentration, resampled to the area definition
     provided'''
 
@@ -559,6 +609,7 @@ def extract_iceconc(dt, lons, lats, area_def, lmask, iceconc_v='cdr-v2',
     dat, conc_skip, concfile = get_ice_conc(dt, area_def, lmask,
                                             iceconc_v=iceconc_v,
                                             maxskip=maxskip,
+                                            forwardtrack=forwardtrack,
                                             verbose=verbose)
     resampled_iceconc = pr.kd_tree.resample_nearest(area_def, dat, trg,
                                                     radius_of_influence=20000,
@@ -572,11 +623,14 @@ def extract_iceconc(dt, lons, lats, area_def, lmask, iceconc_v='cdr-v2',
 # BACKTRACKING AND ICE TYPE CLASSIFICATION
 # ################################################################
 
-def backtrace_traj_step(dt, lons, lats, area_def, icedrift_v='cdr-v1',
-                        maxskip=4, timestep=1, verbose=False):
+def backtrace_traj_step(dt, lons, lats, area_def, forwardtrack=False,
+                        icedrift_v='cdr-v1', maxskip=4, timestep=1,
+                        verbose=False):
     '''Backtrack a single step by adjusting the input lats/lons according
     to the ice drift'''
 
+    # TODO - do I actually need to pass forwardtrack here?
+    
     trg = pr.geometry.SwathDefinition(lons=lons, lats=lats)
 
     # Locate and read the ice drift file
@@ -584,7 +638,9 @@ def backtrace_traj_step(dt, lons, lats, area_def, icedrift_v='cdr-v1',
         driftdata = retrieve_icedrift_file(dt, hemi=area_def.area_id,
                                            icedrift_v=icedrift_v,
                                            maxskip=maxskip,
-                                           timestep=timestep, verbose=verbose)
+                                           timestep=timestep,
+                                           forwardtrack=forwardtrack,
+                                           verbose=verbose)
         lats1 = driftdata['lats1']
         lons1 = driftdata['lons1']
         bdXs = driftdata['bdXs']
@@ -598,6 +654,9 @@ def backtrace_traj_step(dt, lons, lats, area_def, icedrift_v='cdr-v1',
     if lats1.size == 0:
         raise ValueError("No latitudes read from file {} \n".format(f))
 
+    # NOTE: Thomas suggests to not change back from dx,dy to lat,lon all
+    # the time (see TODO note at top of code)
+    
     # Extract the dXs and dYs to the locations of the input (lons, lats)
     # TODO - Is this close enough, since they are vectors? No rotation
     # accounted for.
@@ -616,8 +675,12 @@ def backtrace_traj_step(dt, lons, lats, area_def, icedrift_v='cdr-v1',
     # Get x/y position of input lons/lats:
     x0s, y0s = pobj(lons, lats)
     # Move the points by the resampled bdXs, bdYs
-    x1s = x0s + resampled_bdrift[:, 0]
-    y1s = y0s + resampled_bdrift[:, 1]
+    if forwardtrack:
+        x1s = x0s - resampled_bdrift[:, 0]
+        y1s = y0s - resampled_bdrift[:, 1]
+    else:
+        x1s = x0s + resampled_bdrift[:, 0]
+        y1s = y0s + resampled_bdrift[:, 1]
     # Transform back to lons/lats
     new_lons, new_lats = pobj(x1s, y1s, inverse=True)
     return new_lons, new_lats, drift_skip
@@ -667,12 +730,13 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
     driftdirs = []
 
     maxper = np.nanmax(np.abs(periods))
-
+    
     # Setting up the area definitions
     iceconc_area_def, iceconc_lmask = iceconc_areadef_lmask(enddates[0],
                                                             hemi=hemi,
                                                             iceconc_v=iceconc_v,
                                                             maxskip=maxskip,
+                                                    forwardtrack=forwardtrack,
                                                             verbose=verbose)
 
     # Finding the initial icedrift file (just use timestep of 1 - this gets
@@ -687,15 +751,13 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
     max_drift_skip = driftdata['drift_skip']
     adef = utils.load_grid_defs_from_OSISAF_ncCF_file(drift_file,
                                                       verbose=verbose)
-#    print("adef = ", adef)
-#    area_def = myAreaDefinition(adef)
     area_def = adef
     area_def.area_id = hemi
 
     # Setting up the timestep required for the backtracking. At the moment
     # this is always 1 day
     timestep = 1
-    # Initialize backtracking
+    # Initialize tracking
     arrlen = len(endlons)
     # The status array keeps track of trajectory status. Status 0 is that
     # this trajectory has not begun yet. Status 1 is a trajectory in progress.
@@ -714,9 +776,17 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
     lons[:, 0] = endlons
     lats[:, 0] = endlats
 
-    tpoint = np.nanmax(enddates)
-    while tpoint > min(begindates) and not np.all(status == 2):
+    if forwardtrack:
+        tpoint = np.nanmin(enddates)
+    else:
+        tpoint = np.nanmax(enddates)
+    valid_date = True
 
+    loopcount = 0
+    while valid_date and not np.all(status == 2):
+
+        print_percentage(loopcount, maxper)
+        
         # Check if any new trajectories are happening at this timepoint,
         # and if so the concentration needs to be initialised
         if np.any(enddates == tpoint):
@@ -730,18 +800,20 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
                                                 iceconc_lmask,
                                                 iceconc_v=iceconc_v,
                                                 maxskip=maxskip,
+                                                forwardtrack=forwardtrack,
                                                 verbose=verbose)
             conc[enddates == tpoint, 0] = concinit
             if concdir not in concdirs:
                 concdirs.append(concdir)
 
-        # Do backtracking at the points where the status is > 1
+        # Do tracking at the points where the status is > 1
         trp = status >= 1
         lons[trp, trajstep[trp] + 1], lats[trp, trajstep[trp] + 1], \
             drift_skip = backtrace_traj_step(tpoint,
                                              lons[trp, trajstep[trp]],
                                              lats[trp, trajstep[trp]],
                                              area_def,
+                                             forwardtrack=forwardtrack,
                                              icedrift_v=icedrift_v,
                                              maxskip=maxskip,
                                              timestep=timestep,
@@ -750,12 +822,9 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
         if drift_skip > max_drift_skip:
             max_drift_skip = drift_skip
 
-        #print("STATUS BEFORE = ", status)
         # If an extra landmask is provided for trimming trajectories that
         # go over land, check this here and close any of these trajectories
         if ex_lmask is not None:
-            #print("lonsT = ", lons[:, trajstep[trp] + 1])
-            #print("latsT = ", lats[:, trajstep[trp] + 1])
 
             swath_newll = pr.geometry.SwathDefinition(
                 lons=lons[trp, trajstep[trp] + 1],
@@ -765,23 +834,21 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
                                                       ex_lmask, swath_newll,
                                                     radius_of_influence=150000,
                                                       fill_value=None)
-            #print("LAND_POINTS = ", land_points)
 
             count_land[land_points == 1] += 1
             count_land[land_points == 0] = 0
-            #print("count_land = ", count_land)
             # TODO - For now use the same number of repeats for open water
             # as land
             close = count_land >= ow_repeat
-            status[close] = 2
+            status[close] = 2            
+#            status[land_points] = 2
 
-            #status[land_points] = 2
-            #print("STATUS = ", status)
-            #print("==============================")
-
-        # Go one timestep back in time (to the time of the new position)
+        # Go one timestep in time (to the time of the new position)
         # before finding the ice concentration at this time
-        tpoint = tpoint - timedelta(days=timestep)
+        if forwardtrack:
+            tpoint = tpoint + timedelta(days=timestep)
+        else:
+            tpoint = tpoint - timedelta(days=timestep)
         new_conc, conc_skip, concdir = extract_iceconc(tpoint,
                                             lons[trp, trajstep[trp] + 1],
                                             lats[trp, trajstep[trp] + 1],
@@ -789,11 +856,10 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
                                             iceconc_lmask,
                                             iceconc_v=iceconc_v,
                                             maxskip=maxskip,
+                                            forwardtrack=forwardtrack,
                                             verbose=verbose)
         tmp_conc = np.full_like(status, 150., dtype=float)
         tmp_conc[trp] = new_conc
-
-#        print(tmp_conc)
 
 
         # If there is a mid open water threshold, check this and flag
@@ -827,9 +893,6 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
         count_ow[~ow] = 0
         close = count_ow >= ow_repeat
         status[close] = 2
-#        print("CLOSE = ", close)
-#        print("trajstep = ", trajstep)
-#        print("trajstep[close] = ", trajstep[close])
         # When the trajectory is closed, we don't want these last lons/lats
         for i in range(arrlen):
             if close[i]:
@@ -856,8 +919,23 @@ def backtrack_traj(enddates, endlons, endlats, begindates, periods,
             concdirs.append(concdir)
         if conc_skip > max_conc_skip:
             max_conc_skip = conc_skip
-        if verbose:
-            print('Backtracked to {}'.format(tpoint))
+#        if verbose:
+#            if forwardtrack:
+#                print('Forward tracked to {}'.format(tpoint))
+#            else:
+#                print('Backtracked to {}'.format(tpoint))
+
+        # Check if the latest date is still in range
+        if forwardtrack:
+            if tpoint >= max(begindates):
+                valid_date = False
+        else:
+            if tpoint <= min(begindates):
+                valid_date = False
+
+        
+        loopcount += 1
+    # End of while loop
 
     # Trim the lon/lats to the actual timesteps needed for valid trajectories
     maxts = np.max(trajstep) + 1
@@ -900,7 +978,7 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
                   period='-4y', forwardtrack=False, projname=None,
                   ow_threshold=15., ow_threshold_mid=None, ow_repeat=3,
                   iceconc_v='v3', icedrift_v='cont', reproc=False, maxskip=4,
-                  landmask_fp=None, landmark_var='coastmask_250',
+                  landmask_fp=None, landmask_var='coastmask_250',
                   landmask_val=2, verbose=False, force=False):
 
     # If there is an extra landmask, read this into a swath definition
@@ -987,7 +1065,7 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
     # Make the enddates, endlats, endlons and begindates into 1-d arrays
     if mode == '1d':
 
-        print("Running backtracking in 1-D mode")
+        print("{}: Running backtracking in 1-D mode".format(bid[0]))
 
         elat_1d = np.array(elat)
         elon_1d = np.array(elon)
@@ -995,7 +1073,7 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
         begindate_1d = []
         per_1d = []
         for ed in enddate_1d:
-            bd, p = begindateandper(ed, period)
+            bd, p = begindateandper(ed, period, forwardtrack=forwardtrack)
             begindate_1d.append(bd)
             per_1d.append(p)
         enddate_1d = np.array(enddate_1d, dtype='datetime64[s]')
@@ -1007,7 +1085,7 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
 
     elif mode == '2d':
 
-        print("Running backtracking in 2-D mode")
+        print("{}: Running backtracking in 2-D mode".format(bid[0]))
 
         # Find the timespans from the enddate and the firstenddate
         timespans = []
@@ -1035,7 +1113,8 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
         for i in range(len(bid)):
             for j in range(0, timespans[i], stride):
                 nenddate = enddate[i].replace(hour=12, minute=0) - timedelta(days=j)
-                bd, p = begindateandper(nenddate, period)
+                bd, p = begindateandper(nenddate, period,
+                                        forwardtrack=forwardtrack)
                 enddatearr[i, j] = np.datetime64(nenddate)
                 begindatearr[i, j] = np.datetime64(bd)
                 perarr[i, j] = p
@@ -1055,7 +1134,9 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
     # Find the backtracking name if it is not specified already
     if not outname.endswith('.nc'):
         outname, projname = create_bt_name(outname, firstenddate, enddate, bid,
-                                           json_data, projname, reproc=reproc)
+                                           json_data, projname,
+                                           forwardtrack=forwardtrack,
+                                           reproc=reproc)
 
     # Check if the file already exists and then only run if force is set
     if os.path.isfile(outname):
@@ -1103,7 +1184,6 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
     # Converting the ID names to char arrays with max length 16
     bidpad = [idstr.ljust(16) if len(idstr) <= 16 else idstr[:16]
               for idstr in bid]
-    #print("bidpad = ", bidpad)
     idarr = np.array([[char for char in idstr] for idstr in bidpad], dtype='S1')
 
     # Skip information
@@ -1124,8 +1204,6 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
 
     # Checking flag values
     flagset = np.unique(flagarr)
-    #print("TYPE FLAGSET = {}".format(type(flagset)))
-    #print("FLAGSET = {}".format(flagset))
     if ow_threshold_mid is not None:
         allowed = np.array([-1, 0, 1])
     else:
@@ -1240,6 +1318,8 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
         perlen = period[:-1]
         if period.endswith('d'):
             perunit = 'days'
+        elif period.endswith('w'):
+            perunit = 'weeks'
         elif period.endswith('y'):
             perunit = 'years'
         outf.max_backtracking_period = '{} {} (maximum time period over which positions are tracked)'.format(perlen, perunit)
@@ -1250,6 +1330,9 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
         outf.Conventions = 'CF-1.7,ACDD-1.3'
     if verbose:
         print("Output file ready in {}".format(outname))
+
+    return outname
+    
 
 def main():
 
@@ -1282,15 +1365,18 @@ def main():
     force = args.force
 
 
-    backtrack_loc(bid=bid, enddate=enddate, firstenddate=firstenddate,
-                  elon=elon, elat=elat, json_file=json_file,
-                  json_data=json_data, outname=outname, period=period,
-                  forwardtrack=forwardtrack, projname=projname,
-                  ow_threshold=ow_threshold, ow_threshold_mid=ow_threshold_mid,
-                  ow_repeat=ow_repeat, iceconc_v=iceconc_v,
-                  icedrift_v=icedrift_v, reproc=reproc, maxskip=maxskip,
-                  landmask_fp=landmask_fp, landmark_var=landmask_var,
-                  landmask_val=landmask_val, verbose=verbose, force=force)
+    bt_out = backtrack_loc(bid=bid, enddate=enddate, firstenddate=firstenddate,
+                           elon=elon, elat=elat, json_file=json_file,
+                           json_data=json_data, outname=outname, period=period,
+                           forwardtrack=forwardtrack, projname=projname,
+                           ow_threshold=ow_threshold,
+                           ow_threshold_mid=ow_threshold_mid,
+                           ow_repeat=ow_repeat, iceconc_v=iceconc_v,
+                           icedrift_v=icedrift_v, reproc=reproc,
+                           maxskip=maxskip, landmask_fp=landmask_fp,
+                           landmark_var=landmask_var,
+                           landmask_val=landmask_val, verbose=verbose,
+                           force=force)
 
 if __name__ == '__main__':
 

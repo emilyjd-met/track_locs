@@ -17,10 +17,9 @@ import collections
 from netCDF4 import Dataset
 import xarray as xr
 
-valid_vers = {'conc': ['test', 'v3', 'dm1-v2', 'dm1-v2-amsr', 'cdr-v2',
-                       'cdr-v3'],
-              'drift': ['cont', 'test', 'nrt', 'cdr-v1', 'nsidc', 'nsidc_week'],
-              'type': ['v3', 'cdr-v2', 'cdr-v3']}
+valid_vers = {'conc': ['v3'],
+              'drift': ['cont'],
+              'type': ['v3']}
 
 today = date.today()
 dm3 = date.today() - timedelta(days=3)
@@ -96,7 +95,7 @@ def check_ice_file(fname):
     else:
         if os.path.exists(fname):
             goodfile = True
-
+    
     return goodfile
         
 
@@ -155,13 +154,6 @@ def find_ice_file(pdate, hemi='nh', mode='conc', version='v3'):
                 subdir = ''
             filename = val[4].format(a=hemi, d=pdate, m=mdate)
             filepath = os.path.join(val[3], subdir, filename)
-
-#            print("fp = ", filepath)
-
-#            # Check if this file exists
-#            if os.path.isfile(filepath):
-#                dfile = filepath
-#                break
 
             # Check if this file exists (including if it is on THREDDS)
             if check_ice_file(filepath):
