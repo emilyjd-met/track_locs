@@ -751,7 +751,9 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
                             trajdata['lon'][i, j, k],
                             trajdata['lat'][i, j, k],
                             src_crs=pc)
-                        ax.plot(x1, y1, '-o', markersize=2, color=qcol,
+#                        ax.plot(x1, y1, '-o', markersize=2, color=qcol,
+#                                alpha=lalpha, linestyle=lstyle)
+                        ax.plot(x1, y1, 'o', markersize=2, color=qcol,
                                 alpha=lalpha, linestyle=lstyle)
 
 #                        # Plot the ID if this option is selected and it's the
@@ -783,7 +785,10 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
                                 trajdata['lon'][i, j, k],
                                 trajdata['lat'][i, j, k],
                                 src_crs=pc)
-                            ax.plot([x0, x1], [y0, y1], '-', color=qcol,
+#                            ax.plot([x0, x1], [y0, y1], '-', color=qcol,
+#                                    linewidth=linew, alpha=lalpha,
+#                                    linestyle=lstyle)
+                            ax.plot([x0, x1], [y0, y1], color=qcol,
                                     linewidth=linew, alpha=lalpha,
                                     linestyle=lstyle)
 

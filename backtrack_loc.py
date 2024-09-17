@@ -337,7 +337,7 @@ def retrieve_icedrift_file(dt, hemi='nh', icedrift_v='cdr-v1', maxskip=4,
                 fdt = fdt - timedelta(days=1)
             drift_skip += 1
             if verbose:
-                print("WARNING: for ice drift try again with {}".format(fdt))
+                print("\nWARNING: for ice drift try again with {}".format(fdt))
         fname, dtimestep = find_ice_file(fdt, hemi=hemi, mode='drift',
                                          version=icedrift_v)
 
@@ -524,7 +524,7 @@ def find_iceconc_file(dt, hemi='nh', iceconc_v='cdr-v2', maxskip=4,
                 fdt = fdt - timedelta(days=1)
             conc_skip += 1
             if verbose:
-                print("WARNING: for iceconc try again with {}".format(fdt))
+                print("\nWARNING: for iceconc try again with {}".format(fdt))
         fname = find_ice_file(fdt.date(), hemi=hemi, version=iceconc_v)
         if fname is not None:
             if check_ice_file(fname):
@@ -536,7 +536,7 @@ def find_iceconc_file(dt, hemi='nh', iceconc_v='cdr-v2', maxskip=4,
                          "date {} hemisphere {}".format(iceconc_v, dt, hemi))
     elif conc_skip > 0:
         print("GAP WARNING: No ice conc data available for {}, using data "
-              "for {} instead (skip {} days)".format(
+              "fo {} instead (skip {} days)".format(
                   datetime.strftime(dt, '%Y%m%d'),
                   datetime.strftime(fdt, '%Y%m%d'), conc_skip))
 
@@ -1329,7 +1329,7 @@ def backtrack_loc(bid=None, enddate=None, firstenddate=None, elon=None,
         #outf.drift_dir = driftdirs
         outf.Conventions = 'CF-1.7,ACDD-1.3'
     if verbose:
-        print("Output file ready in {}".format(outname))
+        print("\nOutput file ready in {}\n".format(outname))
 
     return outname
     
