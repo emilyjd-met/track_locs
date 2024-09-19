@@ -5,8 +5,12 @@ moorings (fixed with respect to the ice) and write to an .nc file.
 TODO:
 * Thomas suggests: I think this constant change between lat/lon and dx/dy is most useful when we change grid/projection (e.g. changing from CDR to NRT). But if we stay for several days in one projection, we could possibly stay with the dx/dy and not go through lat/lon. (we can still compute lat/lon, but do not need to go back).
 
+Environment used for programming: conda production environment on redhat linux.
 
-Environment used for programming: conda production environment on redhat linux
+Created by Emily Down at Met Norway based on code by Thomas Lavergne,
+funded by the SUDARCO project.
+
+Please credit as "SUDARCO project/Met Norway"
 '''
 
 import sys
