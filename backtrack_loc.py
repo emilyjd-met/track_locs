@@ -2,16 +2,28 @@
 Calculate back trajectories for ice stations (mobile with the ice) or
 moorings (fixed with respect to the ice) and write to an .nc file.
 
-TODO:
-* Thomas suggests: I think this constant change between lat/lon and dx/dy is most useful when we change grid/projection (e.g. changing from CDR to NRT). But if we stay for several days in one projection, we could possibly stay with the dx/dy and not go through lat/lon. (we can still compute lat/lon, but do not need to go back).
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-Environment used for programming: conda production environment on redhat linux.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 Created by Emily Down at Met Norway based on code by Thomas Lavergne,
 funded by the SUDARCO project.
 
 Please credit as "SUDARCO project/Met Norway"
 '''
+
+
+#TODO:
+#Thomas suggests: I think this constant change between lat/lon and dx/dy is most useful when we change grid/projection (e.g. changing from CDR to NRT). But if we stay for several days in one projection, we could possibly stay with the dx/dy and not go through lat/lon. (we can still compute lat/lon, but do not need to go back).
 
 import sys
 import os
