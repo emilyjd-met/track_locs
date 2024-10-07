@@ -17,5 +17,6 @@ In addition it is possible to track the sea ice forward by a fixed time period.
 As a supplement to this main tracking code, there is a plot_trajectories.py code which can be used to prepare PDF plots of the trajectories
 from the NetCDF files.
 
-This code was prepared at MET Norway with funding from the SUDARCO project. Please credit use with "<Data/plot> prepared with use of code
-funded by the SUDARCO project and prepared at Met Norway".
+This code was prepared at MET Norway with funding from the SUDARCO project. 
+It is licensed under the GNU Affero General Public License v3.0.
+Please credit use with "<Data/plot> prepared with use of code funded by the SUDARCO project and prepared at Met Norway".
