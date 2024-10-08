@@ -1,6 +1,6 @@
 The file req_bt_locs.yml can be used to create a conda environment which has the necessary python dependencies to run the code.
 
-The main code is backtrack_loc.py which traces trajectories of sea ice parcels back in time to where the sea ice is found to be below 
+The main code is track_loc.py which traces trajectories of sea ice parcels back in time to where the sea ice is found to be below 
 a certain concentration, in order to find a probable origin location for this sea ice. This code uses sea ice drift and concentration 
 files from the OSI SAF project which it accesses via a thredds server. The output is a NetCDF file with the sea ice position for each date.
 
