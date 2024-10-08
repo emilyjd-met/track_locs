@@ -18,5 +18,5 @@ As a supplement to this main tracking code, there is a plot_trajectories.py code
 from the NetCDF files.
 
 This code was prepared at MET Norway with funding from the SUDARCO project. 
-It is licensed under the GNU Affero General Public License v3.0.
+It is licensed under the GNU General Public License v3.0.
 Please credit use with "<Data/plot> prepared with use of code funded by the SUDARCO project and prepared at Met Norway".
