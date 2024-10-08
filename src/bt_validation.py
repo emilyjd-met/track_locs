@@ -1,16 +1,14 @@
 '''Validation functions'''
 
 import os
-import sys
 import math
 import random
+from datetime import datetime, timedelta
 import numpy as np
 from netCDF4 import Dataset
-from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import xarray as xr
-import pandas as pd
-from backtrack_loc import backtrack_loc
+from track_loc import track_loc
 from plot_trajectories import plot_traj
 
 
@@ -70,7 +68,7 @@ def validate_traj(newtrajfile, knowntrajfile):
                 if ted in newtraj['trajenddate'][newidnum, :]:
                     j = np.where(newtraj['trajenddate'][newidnum, :] == ted)[0][0]
 
-                    # Selecting the minimum of the timesteps from the two datasets 
+                    # Selecting the minimum of the timesteps from the two datasets
                     tsdim = min(knowntraj['dim_timestep'], newtraj['dim_timestep'])
 
                     # Finding the lat/lon data
@@ -121,9 +119,9 @@ def forward_backward_test(tname, tdate, tlon, tlat, tper, outdir='.'):
     backwards tracking to then check the difference'''
 
     # Forward tracking
-    fw_out = backtrack_loc(bid=tname, enddate=tdate, elon=tlon, elat=tlat,
-                           period=tper, outname=outdir, forwardtrack=True,
-                           force=True)
+    fw_out = track_loc(bid=tname, enddate=tdate, elon=tlon, elat=tlat,
+                       period=tper, outname=outdir, forwardtrack=True,
+                       force=True)
 
     # Finding the end lat/lon and date from the forwards tracking
     with Dataset(fw_out) as ds:
@@ -136,9 +134,9 @@ def forward_backward_test(tname, tdate, tlon, tlat, tper, outdir='.'):
 
     # Run the backwards tracking on the end lat/lon and time
     # Backward tracking
-    bk_out = backtrack_loc(bid=tname, enddate=edate, elon=str(elon),
-                           elat=str(elat), period=tper, outname=outdir,
-                           force=True)
+    bk_out = track_loc(bid=tname, enddate=edate, elon=str(elon),
+                       elat=str(elat), period=tper, outname=outdir,
+                       force=True)
 
     # Finding the equivalent start lat/lon after the forwards-and-backtracking
     with Dataset(bk_out) as ds:
@@ -279,12 +277,12 @@ def compare_buoy_traj(buoyfile, interval, workdir='./workdir'):
         return offset
 
     try:
-        ft_bm = backtrack_loc(bid=bd['buoyname'], enddate=refdate,
-                              elon=str(bd['startlon']),
-                              elat=str(bd['startlat']),
-                              period=bd['period'], outname=workdir,
-                              forwardtrack=True,
-                              force=True)
+        ft_bm = track_loc(bid=bd['buoyname'], enddate=refdate,
+                          elon=str(bd['startlon']),
+                          elat=str(bd['startlat']),
+                          period=bd['period'], outname=workdir,
+                          forwardtrack=True,
+                          force=True)
     except:
         offset = "tracking fail"
         return offset

@@ -232,10 +232,9 @@ def bg_plot_setup(bgvar=None, bgnc=None):
         bg['colbar_label'] = "Age of Sea Ice (years)"
         bg['colbar_type'] = 'discrete'
 
-        
+
     # Average drift in background
     if bgvar in ['avdX', 'avdY']:
-        # TODO - Make drift period flexible
         bg['lbl']  = 'Average {} component over 24 hours [km]'.format(bgvar)
         bg['lim'] = 30
         bg['max'] = bg['lim']
@@ -244,28 +243,14 @@ def bg_plot_setup(bgvar=None, bgnc=None):
         bg['cmap'] = cm.RdBu
         bg['colbar_label'] = "metres"
 
-    # TODO - WRITE A CODE WHICH CREATES A TEMP NC FILE WITH DISPLACEMENT
-    # AS A VARIABLE
     elif bgvar == 'displacement':
-       bg['lbl']  = 'Displacement over 24 hours [km]'
-       #bg['fld']  = pow((pow(u,2) + pow(v,2)), 0.5) / 1000
-       bg['max'] = 30
-       bg['min']  = 0
-       bg['cmap'] = cmocean.cm.thermal
-       bg['cmap_lvl'] = np.arange(bg['min'], bg['max'], 5)
-       bg['cmap_fmt'] = '%2.0f'
-       bg['colbar_label'] = bg['lbl']
-
-#    # Original status flag array
-#    elif bgvar in ['statusflag', 'status_flag', 'flag']:
-#        bg['lbl']  = 'Status flags'
-#        bg['max'] = np.nanmax(bgnc[bgvar])
-#        bg['min'] = 0
-##        bg['cmap'] = cm.viridis
-#        bg['cmap'] = cm.Spectral
-#        bg['cmap_lvl'] = np.arange(bg['min'],bg['max'])
-#        bg['colbar_label'] = ""
-#        bg['colbar_type'] = 'discrete'
+        bg['lbl']  = 'Displacement over 24 hours [km]'
+        bg['max'] = 30
+        bg['min']  = 0
+        bg['cmap'] = cmocean.cm.thermal
+        bg['cmap_lvl'] = np.arange(bg['min'], bg['max'], 5)
+        bg['cmap_fmt'] = '%2.0f'
+        bg['colbar_label'] = bg['lbl']
 
     # Final format status flag array
     elif bgvar in ['statusflag', 'status_flag', 'flag']:

@@ -5,8 +5,8 @@ valid_regions = ['polstere-wide-nh', 'polstere-nh', 'polstere-arc',
                  'polstere-dml', 'polstere-ross', 'polstere-lross',
                  'polstere-bell', 'polstere-wil',
                  'ease-nh', 'ease-nh-wide', 'ease-nh-very-wide',
-                 'ease-eur', 'ease-eur-trim', 'ease-arc', 'ease-miriam-1', 
-                 'ease-dmitry', 'ease-ingeborg', 'ease-can', 'ease-sh', 
+                 'ease-eur', 'ease-eur-trim', 'ease-arc', 'ease-miriam-1',
+                 'ease-dmitry', 'ease-ingeborg', 'ease-can', 'ease-sh',
                  'ease-sh-wide', 'ease-sh-very-wide', 'ease-wed', 'ease-ross',
                  'ease-bell', 'ease-wil']
 

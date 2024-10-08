@@ -3,76 +3,76 @@
 	"Amundsen-1": {
 	    "lon": 174.39041666666665,
 	    "lat": 86.52636666666666,
-	    "enddate": 202208071734,
-	    "firstenddate": 202108071734},
+	    "enddate": 20220807,
+	    "firstenddate": 20210807},
 	"Nansen-1": {
 	    "lon": 22.250633333333333,
 	    "lat": 83.94276666666667,
-	    "enddate": 202208151653,
-	    "firstenddate": 202108151653}
+	    "enddate": 20220815,
+	    "firstenddate": 20210815}
     },
     "AO2022_ice_stations": {
 	"#1 (North Pole)": {
 	    "lon": 143.53333333333333,
 	    "lat": 88.5,
-	    "enddate": 202207290710},
+	    "enddate": 20220729},
 	"#2 (Basket)": {
 	    "lon": 143.53333333333333,
 	    "lat": 88.5,
-	    "enddate": 202207311700},
+	    "enddate": 20220731},
 	"#3 (Basket)": {
 	    "lon": 141.516,
 	    "lat": 87.81215,
-	    "enddate": 202208011215},
+	    "enddate": 20220801},
 	"#4 (Basket)": {
 	    "lon": 138.82728333333333,
 	    "lat": 87.09998333333333,
-	    "enddate": 202208021315},
+	    "enddate": 20220802},
 	"#5 (Basket)": {
 	    "lon": 152.0,
 	    "lat": 87.05,
-	    "enddate": 202208030626},
+	    "enddate": 20220803},
 	"#6 (Amundsen Basin)": {
 	    "lon": 174.39143333333334,
 	    "lat": 86.52303333333333,
-	    "enddate": 202208050650},
+	    "enddate": 20220805},
 	"#7 (Basket)": {
 	    "lon": 9.34335,
 	    "lat": 85.63078333333333,
-	    "enddate": 202208091019},
+	    "enddate": 20220809},
 	"#8 (Nansen Basin)": {
 	    "lon": 22.22,
 	    "lat": 83.9575,
-	    "enddate": 202208121410},
+	    "enddate": 20220812},
 	"#9 (Basket)": {
 	    "lon": 25.026916666666665,
 	    "lat": 83.36473333333333,
-	    "enddate": 202208160650},
+	    "enddate": 20220816},
 	"#10 (Marg Ice Zone)": {
 	    "lon": 27.53465,
 	    "lat": 82.68915,
-	    "enddate": 202208170750}
+	    "enddate": 20220817}
     },
     "AO2023_ice_stations": {
 	"IceStation#1": {
 	    "lon": 358.4522,
 	    "lat": 79.1569,
-	    "enddate": 202306061912},
+	    "enddate": 20230606},
 	"IceStation#2": {
 	    "lon": 2.8088,
 	    "lat": 80.0144,
-	    "enddate": 202306090230},
+	    "enddate": 20230609},
 	"IceStation#3": {
 	    "lon": 353.818,
 	    "lat": 78.7537,
-	    "enddate": 202306121117},
+	    "enddate": 20230612},
 	"IceStation#4": {
 	    "lon": 355.9903,
 	    "lat": 78.7182,
-	    "enddate": 202306151516},
+	    "enddate": 20230615},
 	"IceStation#5": {
 	    "lon": 357.644,
 	    "lat": 78.785,
-	    "enddate": 202306180258}
+	    "enddate": 20230618}
     }
 }

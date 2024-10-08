@@ -15,7 +15,6 @@ import os
 from datetime import date, datetime, timedelta
 import collections
 from netCDF4 import Dataset
-import xarray as xr
 
 valid_vers = {'conc': ['v3'],
               'drift': ['cont'],
@@ -95,9 +94,9 @@ def check_ice_file(fname):
     else:
         if os.path.exists(fname):
             goodfile = True
-    
+
     return goodfile
-        
+
 
 def find_ice_file(pdate, hemi='nh', mode='conc', version='v3'):
     '''Find an ice file for a particular date and mode'''

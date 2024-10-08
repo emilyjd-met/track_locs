@@ -1,16 +1,24 @@
-'''Loads grid definitions from an OSI SAF netcdf file'''
-
+'''
+More general useful functions for use with the tracking code.
+'''
+import os
+import sys
+import re
 from math import fabs
+from datetime import datetime
+import numpy as np
 import pyresample as pr
 from netCDF4 import Dataset
 
 
 def load_grid_defs_from_OSISAF_ncCF_file(ncCF_file, verbose=False):
-    """
+    '''
+    Loads grid definitions from an OSI SAF netcdf file
+
     Searches for a variable with attribute 'grid_mapping'. Use the
     value of that attribute to load proj string information, and then
     use xc and yc for defining the extent of the pyresample area_def object.
-    """
+    '''
 
     def get_area_id(area, projection, resolution):
         reso = int(float(resolution)*10)
@@ -102,3 +110,57 @@ def load_grid_defs_from_OSISAF_ncCF_file(ncCF_file, verbose=False):
                                                   extent)
 
         return area_def
+
+
+def print_percentage(step, total_steps):
+    '''
+    Print the completion percentage.
+    '''
+    percentage = int((step / total_steps) * 100)
+    sys.stdout.write('\r')
+    #sys.stdout.write(f'{percentage:.2f}%')
+    sys.stdout.write(f'Tracking... {percentage}%')
+    sys.stdout.flush()
+
+
+def strip_date(listdirs):
+    '''Strip month and year subdirectories from a list of directory names'''
+
+    pattm = '^[0-9]{2}$'
+    patty = '^[0-9]{4}$'
+    cleandirs = []
+
+    for dr in listdirs:
+        cleaning = True
+        while cleaning:
+            if (re.match(pattm, os.path.basename(dr)) or
+                re.match(patty, os.path.basename(dr))):
+                dr = os.path.dirname(dr)
+            else:
+                cleandirs.append(dr)
+                cleaning = False
+                break
+
+    return cleandirs
+
+
+def convtodt(dt):
+    '''Check a time is in python datetime format and convert if not. If Nan,
+    just return NaN'''
+
+    # If this is not a number, return immediately
+    if np.isnan(dt):
+        return dt
+
+    # If this is already python datetime, return immediately
+    if isinstance(dt, datetime):
+        return dt
+
+    # Convert datetime64
+    if isinstance(dt, np.datetime64):
+        unix_epoch = np.datetime64(0, 's')
+        one_second = np.timedelta64(1, 's')
+        seconds_since_epoch = (dt - unix_epoch) / one_second
+        return datetime.utcfromtimestamp(seconds_since_epoch)
+
+    raise ValueError("Unknown type of time {}".format(dt))

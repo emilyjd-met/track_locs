@@ -1,11 +1,4 @@
-'''Plot backtracked trajectories
-
-TO DO:
-* Plot multiple .nc files on one plot
-* Colour the points from different .nc files a single colour but different
-  from other .nc files
-* Plot only selected dates from the .nc file!
-(or can let these options be handled differently in other plotting routines)
+'''Plot tracked trajectories
 '''
 
 import os.path
@@ -16,8 +9,6 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import numpy as np
 from numpy import ma
-#import matplotlib as mpl
-#matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.colors as colors
@@ -164,7 +155,7 @@ def read_traj(ncfile):
 
         # Finding the dimensions
         dims = dataset.variables['longitude'][:].shape
-        trajdata['dimid'], trajdata['dimtrajenddate'], trajdata['dimtimestep'] = dims
+        trajdata['dimid'], trajdata['dimreferencedate'], trajdata['dimtimestep'] = dims
 
         # idnum and idname are size (dimid)
         trajdata['idnum'] = dataset.variables['idnum'][:]
@@ -172,14 +163,14 @@ def read_traj(ncfile):
                               for y in dataset.variables['idname'][:]]
         # timestep is size (dimstimestep)
         trajdata['timestep'] = dataset.variables['timestep'][:]
-        # trajenddate is dimensions (dimid, dimtrajenddate)
-        trajdata['trajenddatesec'] = dataset.variables['trajenddate'][:, :]
-        trajdata['timeunits'] = dataset.variables['trajenddate'].units
+        # referencedate is dimensions (dimid, dimreferencedate)
+        trajdata['referencedatesec'] = dataset.variables['referencedate'][:, :]
+        trajdata['timeunits'] = dataset.variables['referencedate'].units
         ted = []
         for i in range(trajdata['dimid']):
             ted.append([datetime.fromtimestamp(t)
-                        for t in trajdata['trajenddatesec'][i, :]])
-        trajdata['trajenddate'] = np.array(ted)
+                        for t in trajdata['referencedatesec'][i, :]])
+        trajdata['referencedate'] = np.array(ted)
         trajdata['lat'] = dataset.variables['latitude'][:]
         trajdata['lon'] = dataset.variables['longitude'][:]
         trajdata['flag'] = dataset.variables['status_flag'][:]
@@ -205,8 +196,8 @@ def filter_by_stride(trajdata, stride):
         nlats = []
         nlons = []
         nflags = []
-        nextstride = trajdata['trajenddate'][i, 0]
-        for j, ed in enumerate(trajdata['trajenddate'][i, :]):
+        nextstride = trajdata['referencedate'][i, 0]
+        for j, ed in enumerate(trajdata['referencedate'][i, :]):
             if ed == nextstride:
                 if strideunits == 'm':
                     nextstride = nextstride - relativedelta(months=strideval)
@@ -221,7 +212,7 @@ def filter_by_stride(trajdata, stride):
         alats.append(nlats)
         aflags.append(nflags)
 
-    trajdata['trajenddate'] = np.array(aenddates)
+    trajdata['referencedate'] = np.array(aenddates)
     trajdata['lon'] = np.array(alons)
     trajdata['lat'] = np.array(alats)
     trajdata['flag'] = np.array(aflags)
@@ -632,20 +623,20 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
         trajdata = filter_by_stride(trajdata, stride)
 
     # Checking if there is valid data
-    if (trajdata['dimid'] == 0 or trajdata['dimtrajenddate'] == 0
+    if (trajdata['dimid'] == 0 or trajdata['dimreferencedate'] == 0
         or trajdata['dimtimestep'] == 0):
         raise ValueError("No valid trajectory data to plot, exiting.")
 
     # Setting up the colour map by end date, if this is selected
     if colmode == 'enddate':
         edrangei = []
-        mintrajenddatei = []
-        maxtrajenddatei = []
+        minreferencedatei = []
+        maxreferencedatei = []
         for i in range(trajdata['dimid']):
-            maxtedi = np.nanmax(trajdata['trajenddate'][i, :])
-            mintedi = np.nanmin(trajdata['trajenddate'][i, :])
-            maxtrajenddatei.append(maxtedi)
-            mintrajenddatei.append(mintedi)
+            maxtedi = np.nanmax(trajdata['referencedate'][i, :])
+            mintedi = np.nanmin(trajdata['referencedate'][i, :])
+            maxreferencedatei.append(maxtedi)
+            minreferencedatei.append(mintedi)
             edrangei.append((maxtedi - mintedi).days)
         edrange = max(edrangei)
         edcolmap = cm.viridis_r
@@ -692,25 +683,25 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
         # Don't use the dimension here in case this has been filtered to
         # be a shorter array
         # Reverse the array so the latest enddate is plotted last
-        for j in reversed(range(len(trajdata['trajenddate'][0, :]))):
+        for j in reversed(range(len(trajdata['referencedate'][0, :]))):
             if verbose:
                 print("Plotting for end date {}"
-                      "".format(trajdata['trajenddate'][i][j]))
+                      "".format(trajdata['referencedate'][i][j]))
 
             # Setting the colour if per enddate
             if colmode == 'enddate':
                 if edrange > 0:
-                    edindex = (trajdata['trajenddate'][i][j]
-                               - mintrajenddatei[i]).days
+                    edindex = (trajdata['referencedate'][i][j]
+                               - minreferencedatei[i]).days
                     qcol = edcolmap(edindex / edrange)
                 else:
                     qcol = 'black'
 
             # Setting the colour if myi colouring required
             if colmode == 'myi':
-                mie_date = find_mie_date(trajdata['trajenddate'][i][j],
+                mie_date = find_mie_date(trajdata['referencedate'][i][j],
                                          mie_list)
-                myindex = (trajdata['trajenddate'][i][j] - mie_date).days
+                myindex = (trajdata['referencedate'][i][j] - mie_date).days
 
             # Plot the trajectory
             for k in range(trajdata['dimtimestep']):
@@ -727,7 +718,7 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
                     if colmode == 'timestep':
                         qcol = tscolmap(trajdata['timestep'][k] / tsrange)
                     if colmode == 'month':
-                        mdate = trajdata['trajenddate'][i][j] - timedelta(days=int(trajdata['timestep'][k]))
+                        mdate = trajdata['referencedate'][i][j] - timedelta(days=int(trajdata['timestep'][k]))
                         qcol = mocolmap(mdate.month - 1)
 
                     # Setting the colour if per myi
@@ -905,7 +896,7 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
     if title == '':
         title = trajdata['dataset_name']
         #title = '{}, {}'.format(trajdata['idname'][0],
-        #                       datetime.strftime(trajdata['trajenddate'][0][0],
+        #                       datetime.strftime(trajdata['referencedate'][0][0],
         #                                         '%Y%m%d'))
     plt.title(title, fontsize=titlefont)
 
