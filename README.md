@@ -14,7 +14,10 @@ This code can be used in two modes:
 
 In addition it is possible to track the sea ice forward by a fixed time period.
 
-As a supplement to this main tracking code, there is a plot_trajectories.py code which can be used to prepare PDF plots of the trajectories
+The Jupyter notebook tracking_examples.ipynb can be run to demonstrate the tracking code and the plotting code. This uses an input file 
+sudarco_cruises.json which contains the data of 2022 and 2023 SUDARCO project cruise ice stations and moorings.
+
+As a supplement to this main tracking code, there is a plot_trajectories.py code which can be used to prepare PNG plots of the trajectories
 from the NetCDF files.
 
 This code was prepared at MET Norway with funding from the SUDARCO project. 
