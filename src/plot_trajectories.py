@@ -877,8 +877,10 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
             cmap_lvl = np.arange(0, tsrange, 10)
         elif tsrange > 60 and tsrange <= 300:
             cmap_lvl = np.arange(0, tsrange, 50)
-        elif tsrange > 300 and tsrange <= 2000:
+        elif tsrange > 300 and tsrange <= 600:
             cmap_lvl = np.arange(0, tsrange, 100)
+        elif tsrange > 600 and tsrange <= 2000:
+            cmap_lvl = np.arange(0, tsrange, 200)
         else:
             cmap_lvl = np.arange(0, tsrange, 1000)
         plt.colorbar(tscb, ticks=cmap_lvl,
