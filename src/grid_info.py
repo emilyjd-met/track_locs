@@ -1,4 +1,5 @@
 valid_regions = ['polstere-wide-nh', 'polstere-nh', 'polstere-arc',
+                 'polstere30-dmitry',
                  'polstere-can', 'polstere-ala', 'polstere-eur',
                  'polstere-sib', 'polstere-bfg', 'polstere-fra',
                  'polstere-wide-sh', 'polstere-sh', 'polstere-wed',
@@ -40,6 +41,14 @@ def region_params(region):
         rp['urlat'] = 60.80976
         rp['urlon'] = 88.39744
         rp['long_name'] = 'Arctic Ocean'
+        rp['scale'] = 8
+        rp['labelpos'] = 0.85
+    elif region == 'polstere30-dmitry':
+        rp['lllat'] = 72 #74
+        rp['lllon'] = 0 #-5
+        rp['urlat'] = 80.5 #87
+        rp['urlon'] = 105 #65
+        rp['long_name'] = 'Svalbard and surrounding area'
         rp['scale'] = 8
         rp['labelpos'] = 0.85
     elif region == 'polstere-can':

@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.colors as colors
 import matplotlib.lines as mlines
+import matplotlib.ticker as mticker
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from shapely.ops import cascaded_union
@@ -112,12 +113,16 @@ def parse_args():
                    help="Either an output directory or a full filepath")
     p.add_argument('-l', '--label_traj', action='store_true', default=False,
                    help="Label trajectories with station ID")
+    p.add_argument('-l2', '--label_traj', action='store_true', default=False,
+                   help="Label trajectories directly with station ID (no key)")
     p.add_argument('-c', '--colmode', required=False, default='timestep',
                    choices=valid_colmode,
                    help="Colouring mode for trajectory, default is 'timestep', "
                    "valid choices are {}".format(valid_colmode))
     p.add_argument('-t', '--title', required=False, default='',
-                   help="Title for the plot")
+                   help="Title for the plot. Leaving this blank sets the "
+                   "title to the dataset title. Setting to 'notitle' leaves "
+                   " this blank")
     p.add_argument('-s', '--stride', required=False, default='1d',
                    help="Stride of trajectory enddates to plot, e.g. 1m, "
                    "7d, default is 1d")
@@ -125,6 +130,8 @@ def parse_args():
                    help="Plot bathymetry lines")
     p.add_argument('-g', '--latlongrid', action='store_true', default=False,
                    help="Plot a lat/lon grid?")
+    p.add_argument('-g2', '--latlongrid2', action='store_true', default=False,
+                   help="Plot a lat/lon grid with labels?")
     p.add_argument('-bgf', '--bg_file', required=False, default=None,
                    help="Filepath to the background file to plot")
     p.add_argument('-bgv', '--bg_var', required=False, default=None,
@@ -138,6 +145,8 @@ def parse_args():
     p.add_argument('-icf', '--ignore_mid_conc', required=False, default=False,
                    help="Don't flag mid concentration part of the trajectory "
                    "with transparency even if flags are set")
+    p.add_argument('-j', '--plot_jpg', action='store_true', default=False,
+                   help="Plot a jpeg instead of a png")
     p.add_argument('-v', '--verbose', action='store_true', default=False,
                    help="Print extra information while running the code")
 
@@ -487,10 +496,10 @@ def nc_read(ncfile, var, bg_ind=None, skip=None):
 
 
 def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
-              colmode='timestep', title='', stride='1d',
-              bathymetry=False, latlongrid=False,
+              label_traj2=False, colmode='timestep', title='', stride='1d',
+              bathymetry=False, latlongrid=False, latlongrid2=False,
               bg_file=None, bg_var=None, bg_ind=None, bg_date=None, linew=1.0,
-              ignore_mid_conc=False, verbose=False):
+              ignore_mid_conc=False, plot_jpg=False, verbose=False):
 
     # Finding the region parameters
     rp = region_params(region)
@@ -500,6 +509,8 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
         hemi = 'sh'
     if region.startswith('ease'):
         gridtype = 'ease'
+    elif region.startswith('polstere30'):
+        gridtype = 'polstere30'
     elif region.startswith('pol'):
         gridtype = 'polstere'
     else:
@@ -513,6 +524,30 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
                                  'lat_0': 90.,
                                  'lat_ts' : 70.,
                                  'lon_0': -45.0,
+                                 'a': 6378273,
+                                 'b': 6356889.44891}
+            plot_globe = ccrs.Globe(semimajor_axis=plot_proj4_params['a'],
+                                    semiminor_axis=plot_proj4_params['b'])
+            plot_crs = ccrs.NorthPolarStereo(
+                central_longitude=plot_proj4_params['lon_0'], globe=plot_globe)
+        else:
+            plot_proj4_params = {'proj': 'stere',
+                                 'lat_0': -90.,
+                                 'lat_ts' : -70.,
+                                 'lon_0': 0.,
+                                 'a': 6378273,
+                                 'b': 6356889.44891}
+            plot_globe = ccrs.Globe(semimajor_axis=plot_proj4_params['a'],
+                                    semiminor_axis=plot_proj4_params['b'])
+            plot_crs = ccrs.SouthPolarStereo(
+                central_longitude=plot_proj4_params['lon_0'], globe=plot_globe)
+
+    elif gridtype == 'polstere30':
+        if hemi == 'nh':
+            plot_proj4_params = {'proj': 'stere',
+                                 'lat_0': 90.,
+                                 'lat_ts' : 70.,
+                                 'lon_0': 30,
                                  'a': 6378273,
                                  'b': 6356889.44891}
             plot_globe = ccrs.Globe(semimajor_axis=plot_proj4_params['a'],
@@ -558,6 +593,8 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
     # Finding the plot corners
     llx, lly = plot_crs.transform_point(rp['lllon'], rp['lllat'], src_crs=pc)
     urx, ury = plot_crs.transform_point(rp['urlon'], rp['urlat'], src_crs=pc)
+#    llx, lly = plot_crs.transform_point(min(rp['lllon'], rp['urlon']), min(rp['lllat'], rp['urlat']), src_crs=pc)
+#    urx, ury = plot_crs.transform_point(max(rp['lllon'], rp['urlon']), max(rp['lllat'], rp['urlat']), src_crs=pc)
 
     # The projection keyword determines how the plot will look
     fig = plt.figure(figsize=(6, 6))
@@ -565,6 +602,9 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
     ax = plt.axes(projection=plot_crs)
 
     # Setting the region
+# TODO: Maybe switch to using PlateCarree for extents (change in background
+# settings file)
+#    ax.set_extent([rp['lllon'], rp['urlon'], rp['lllat'], rp['urlat']], crs=pc)
     ax.set_extent([llx, urx, lly, ury], crs=plot_crs)
 
     # Plotting the background if this is set
@@ -759,10 +799,14 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
 #                                        label, fontsize=labelfont)
                         # Plot the ID if this option is selected and it's the
                         # first enddate
-                        xlaboffset = 10000
-                        ylaboffset = 80000
+                        xlaboffset = 80000
+                        ylaboffset = 50000
                         if label_traj and j == 0:
                             label = '{}'.format(str(i + 1))
+                            ax.text(x1 - xlaboffset, y1 - ylaboffset,
+                                    label, fontsize=labelfont)
+                        if label_traj2 and j == 0:
+                            label = '{}'.format(trajdata['idname'][i])
                             ax.text(x1 - xlaboffset, y1 - ylaboffset,
                                     label, fontsize=labelfont)
 
@@ -824,24 +868,26 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
         else:
             cmap_lvl = np.arange(0, edrange, 1000)
         plt.colorbar(edcb, ticks=cmap_lvl,
-                     orientation='horizontal', pad=0.05, shrink=0.4
+                     orientation='horizontal', pad=0.1, shrink=0.4
     ).set_label('End date of trajectory relative to the earliest date (days)')
     elif colmode == 'timestep':
         if tsrange <= 20:
             cmap_lvl = np.arange(0, tsrange)
-        elif tsrange > 20 and tsrange <= 200:
+        elif tsrange > 20 and tsrange <= 60:
             cmap_lvl = np.arange(0, tsrange, 10)
-        elif tsrange > 200 and tsrange <= 2000:
-            cmap_lvl = np.arange(0, tsrange, 200)
+        elif tsrange > 60 and tsrange <= 300:
+            cmap_lvl = np.arange(0, tsrange, 50)
+        elif tsrange > 300 and tsrange <= 2000:
+            cmap_lvl = np.arange(0, tsrange, 100)
         else:
             cmap_lvl = np.arange(0, tsrange, 1000)
         plt.colorbar(tscb, ticks=cmap_lvl,
-                     orientation='horizontal', pad=0.05, shrink=0.4
+                     orientation='horizontal', pad=0.1, shrink=0.4
         ).set_label('Elapsed time in trajectory (days)')
     elif colmode == 'month':
         tickpos = [x + 0.5 for x in range(12)]
         mcb = plt.colorbar(mocb, ticks=tickpos, orientation='horizontal',
-                     pad=0.05, shrink=0.4).set_ticklabels(molabs)#.set_label('Month')
+                     pad=0.1, shrink=0.4).set_ticklabels(molabs)#.set_label('Month')
 
 
     # Bathymetry
@@ -862,8 +908,9 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
 
     # Coastlines
     ax.add_feature(cfeature.NaturalEarthFeature('physical', 'land',
-                                                '50m', edgecolor=col_land,
-                                                facecolor=col_land))
+                                                '50m', edgecolor='black',
+                                                facecolor=col_land,
+                                                linewidth=0.5))
     ice_shelves = cfeature.NaturalEarthFeature(
         category='physical',
         name='antarctic_ice_shelves_polys',
@@ -892,12 +939,23 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
             ax.plot([x0, x1], [y0, y1], color='black', linewidth=0.2,
                     linestyle='--')
 
+    # Alternative gridlines with labels
+    if latlongrid2:
+        xticks = np.arange(-180, 181, 5)
+        yticks = np.arange(-90, 91, 2)
+        gl = ax.gridlines(crs=pc, draw_labels=True,
+                          linewidth=1, color='darkgray', alpha=0.6, linestyle=':')
+        gl.xlocator = mticker.FixedLocator(xticks)
+        gl.ylocator = mticker.FixedLocator(yticks)
+
     # Title
     if title == '':
         title = trajdata['dataset_name']
         #title = '{}, {}'.format(trajdata['idname'][0],
         #                       datetime.strftime(trajdata['referencedate'][0][0],
         #                                         '%Y%m%d'))
+    elif title == 'notitle':
+        title = ''
     plt.title(title, fontsize=titlefont)
 
     # If no output is given, the input name is taken replacing .nc with .png,
@@ -918,7 +976,11 @@ def plot_traj(trajinp, region='ease-nh-wide', output='.', label_traj=False,
         if os.path.isdir(output):
             output = os.path.join(output, os.path.basename(o))
     plt.tight_layout()
-    plt.savefig(output, bbox_inches='tight')
+    if plot_jpg:
+        output = output.replace('.png', '.jpg')
+        plt.savefig(output, bbox_inches='tight', format='jpeg', dpi=300)
+    else:
+        plt.savefig(output, bbox_inches='tight')
     plt.show()
     plt.close()
     print("Figure is in {}".format(output))
@@ -931,11 +993,13 @@ def main():
     region = args.region
     output = args.output
     label_traj = args.label_traj
+    label_traj2 = args.label_traj2
     colmode = args.colmode
     title = args.title
     stride = args.stride
     bathymetry = args.bathymetry
     latlongrid = args.latlongrid
+    latlongrid2 = args.latlongrid2
     bg_file = args.bg_file
     bg_var = args.bg_var
     bg_ind = args.bg_ind
@@ -944,13 +1008,16 @@ def main():
     bg_date = args.bg_date
     linew = args.linew
     ignore_mid_conc = args.ignore_mid_conc
+    plot_jpg = args.plot_jpg
     verbose = args.verbose
 
     plot_traj(trajinp, region=region, output=output, label_traj=label_traj,
-              colmode=colmode, title=title, stride=stride,
-              bathymetry=bathymetry, latlongrid=latlongrid,
-              bg_file=bg_file, bg_var=bg_var, bg_ind=bg_ind, bg_date=bg_date,
-              linew=linew, ignore_mid_conc=ignore_mid_conc, verbose=verbose)
+              label_traj2=label_traj2, colmode=colmode, title=title,
+              stride=stride, bathymetry=bathymetry, latlongrid=latlongrid,
+              latlongrid2 = args.latlongrid2, bg_file=bg_file, bg_var=bg_var,
+              bg_ind=bg_ind, bg_date=bg_date, linew=linew,
+              ignore_mid_conc=ignore_mid_conc, plot_jpg=plot_jpg,
+              verbose=verbose)
 
 
 if __name__ == '__main__':
