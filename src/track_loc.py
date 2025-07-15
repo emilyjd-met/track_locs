@@ -1314,7 +1314,7 @@ def main():
                   ow_repeat=ow_repeat, iceconc_v=iceconc_v,
                   icedrift_v=icedrift_v, reproc=reproc,
                   maxskip=maxskip, landmask_fp=landmask_fp,
-                  landmark_var=landmask_var,
+                  landmask_var=landmask_var,
                   landmask_val=landmask_val, verbose=verbose,
                   force=force)
 

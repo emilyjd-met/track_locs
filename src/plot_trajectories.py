@@ -113,7 +113,7 @@ def parse_args():
                    help="Either an output directory or a full filepath")
     p.add_argument('-l', '--label_traj', action='store_true', default=False,
                    help="Label trajectories with station ID")
-    p.add_argument('-l2', '--label_traj', action='store_true', default=False,
+    p.add_argument('-l2', '--label_traj2', action='store_true', default=False,
                    help="Label trajectories directly with station ID (no key)")
     p.add_argument('-c', '--colmode', required=False, default='timestep',
                    choices=valid_colmode,
