@@ -50,6 +50,8 @@ warnings.filterwarnings("ignore", message="You will likely lose important projec
 
 def parse_args():
 
+    sid_rm_choices = ['gauss', 'nn']
+
     p = argparse.ArgumentParser(description='')
     p.add_argument('-i', '--bid', required=False, default=None,
                    help="Name of the ice-station or mooring. Can be "
@@ -135,6 +137,10 @@ def parse_args():
     p.add_argument('-f', '--force', action='store_true', default=False,
                    help="Force overwrite of output file if it already "
                    "exists")
+    p.add_argument('-dr', '--sid_resampling_method', default='gauss',
+                   choices=sid_rm_choices,
+                   help='Method for resampling sea-ice drift, choices are: '
+                   '{}'.format(sid_rm_choices))
 
     args = p.parse_args()
 
@@ -571,7 +577,8 @@ def extract_iceconc(dt, lons, lats, area_def, lmask,
 
 def track_single_step(dt, lons, lats, area_def, forwardtrack=False,
                       icedrift_v=valid_vers['drift'][0], maxskip=4,
-                      timestep=1, verbose=False):
+                      timestep=1, verbose=False,
+                      sid_resampling_method='gauss'):
     '''Track a single step by adjusting the input lats/lons according
     to the ice drift'''
 
@@ -601,11 +608,21 @@ def track_single_step(dt, lons, lats, area_def, forwardtrack=False,
 
     # Extract the dXs and dYs to the locations of the input (lons, lats)
     src = pr.geometry.SwathDefinition(lons=lons1, lats=lats1)
-    resampled_bdrift = pr.kd_tree.resample_gauss(src, np.dstack((bdXs, bdYs)),
-                                                 trg,
-                                                 radius_of_influence=150000,
-                                                 sigmas=[62500, 62500],
-                                                 neighbours=10)
+    if sid_resampling_method == 'gauss':
+        resampled_bdrift = pr.kd_tree.resample_gauss(src,
+                                                     np.dstack((bdXs, bdYs)),
+                                                     trg,
+                                                     radius_of_influence=150000,
+                                                     sigmas=[62500, 62500],
+                                                     neighbours=10)
+    elif sid_resampling_method == 'nn':
+        resampled_bdrift = pr.kd_tree.resample_nearest(src,
+                                                       np.dstack((bdXs, bdYs)),
+                                                       trg,
+                                                     radius_of_influence=150000)
+    else:
+        raise ValueError("Sea-ice drift resampling method is unrecognised: {}"
+                         "".format(sid_resampling_method))
 
     # Move the input lons and lats by the (bdXs, bdYs) vectors
     # This requires knowledge of the pyproj object associated to the ice
@@ -664,7 +681,7 @@ def track_traj(enddates, endlons, endlats, begindates, periods,
                icedrift_v=valid_vers['drift'][0],
                maxskip=4, ow_threshold=15, ow_threshold_mid=None,
                ow_repeat=3, ex_lmask=None, ex_lmask_swath=None,
-               verbose=False):
+               verbose=False, sid_resampling_method='gauss'):
     '''Backtrack or forward track until the time limit or a gap in the ice'''
 
     concdirs = []
@@ -759,7 +776,8 @@ def track_traj(enddates, endlons, endlats, begindates, periods,
                                            icedrift_v=icedrift_v,
                                            maxskip=maxskip,
                                            timestep=timestep,
-                                           verbose=verbose)
+                                           verbose=verbose,
+                                           sid_resampling_method=sid_resampling_method)
 
         if drift_skip > max_drift_skip:
             max_drift_skip = drift_skip
@@ -912,7 +930,8 @@ def track_loc(bid=None, enddate=None, firstenddate=None, elon=None,
               iceconc_v=valid_vers['conc'][0],
               icedrift_v=valid_vers['drift'][0], reproc=False, maxskip=4,
               landmask_fp=None, landmask_var='coastmask_250',
-              landmask_val=2, verbose=False, force=False):
+              landmask_val=2, verbose=False, force=False,
+              sid_resampling_method='gauss'):
 
     # If there is an extra landmask, read this into a swath definition
     if landmask_fp is not None:
@@ -1093,7 +1112,8 @@ def track_loc(bid=None, enddate=None, firstenddate=None, elon=None,
                           ow_repeat=ow_repeat,
                           ex_lmask=ex_lmask,
                           ex_lmask_swath=ex_lmask_swath,
-                          verbose=verbose)
+                          verbose=verbose,
+                          sid_resampling_method=sid_resampling_method)
 
     # Working out the time coverage
     maxdate = np.nanmax(btoutput['enddates'])
@@ -1303,7 +1323,7 @@ def main():
     landmask_val = int(args.landmask_val)
     verbose = args.verbose
     force = args.force
-
+    sid_resampling_method = args.sid_resampling_method
 
     _ = track_loc(bid=bid, enddate=enddate, firstenddate=firstenddate,
                   elon=elon, elat=elat, json_file=json_file,
@@ -1316,7 +1336,7 @@ def main():
                   maxskip=maxskip, landmask_fp=landmask_fp,
                   landmask_var=landmask_var,
                   landmask_val=landmask_val, verbose=verbose,
-                  force=force)
+                  force=force, sid_resampling_method=sid_resampling_method)
 
 if __name__ == '__main__':
 
