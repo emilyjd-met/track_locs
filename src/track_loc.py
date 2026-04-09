@@ -1287,6 +1287,7 @@ def track_loc(bid=None, enddate=None, firstenddate=None, elon=None,
         outf.max_gap_days_conc = str(max_skips_conc)
         #outf.conc_dir = concdirs
         #outf.drift_dir = driftdirs
+        outf.sid_resampling_method = sid_resampling_method
         outf.Conventions = 'CF-1.7,ACDD-1.3'
     if verbose:
         print("\nOutput file ready in {}\n".format(outname))
